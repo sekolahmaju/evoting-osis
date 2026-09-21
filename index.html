@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>E-Voting OSIS</title>
+  <title>E-Voting MPK</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -141,42 +141,33 @@
 
   <div class="logo">🗳️</div>
 
-  <h1>E-Voting OSIS</h1>
+  <h1>E-Voting MPK</h1>
 
   <div class="subtitle">
     Silakan masuk untuk mengikuti pemilihan
   </div>
 
-
-  <!-- ==============================
-       LOGIN PEMILIH
-  =============================== -->
+  <!-- LOGIN PEMILIH -->
 
   <div id="loginPage">
 
-    <label for="nama">
-      Nama Lengkap
-    </label>
+    <label for="nama">Nama Lengkap</label>
 
     <input
       id="nama"
       type="text"
-      placeholder="Contoh: Aldi"
+      placeholder="Masukkan nama lengkap"
       autocomplete="off"
     >
 
-
-    <label for="kelas">
-      Kelas
-    </label>
+    <label for="jabatan">Jabatan</label>
 
     <input
-      id="kelas"
+      id="jabatan"
       type="text"
-      placeholder="Contoh: XII IPA 1"
+      placeholder="Contoh: Siswa / Guru"
       autocomplete="off"
     >
-
 
     <button
       id="loginButton"
@@ -185,31 +176,17 @@
       MASUK
     </button>
 
+    <div id="message" class="message"></div>
 
-    <div
-      id="message"
-      class="message"
-    ></div>
-
-
-    <div
-      id="status"
-      class="status"
-    >
+    <div id="status" class="status">
       Memeriksa status pemilihan...
     </div>
 
   </div>
 
+  <!-- BERHASIL LOGIN -->
 
-  <!-- ==============================
-       BERHASIL LOGIN
-  =============================== -->
-
-  <div
-    id="welcomePage"
-    class="hidden"
-  >
+  <div id="welcomePage" class="hidden">
 
     <div class="welcome">
 
@@ -219,16 +196,13 @@
 
       <br>
 
-      <strong id="welcomeName">
-        -
-      </strong>
+      <strong id="welcomeName">-</strong>
 
       <p class="subtitle">
         Identitas pemilih berhasil diverifikasi.
       </p>
 
     </div>
-
 
     <button
       class="continue"
@@ -240,7 +214,6 @@
   </div>
 
 </div>
-
 
 <script>
 
@@ -262,415 +235,225 @@ const supabaseClient =
 
 
 // =====================================================
-// DEBUG KONEKSI
-// =====================================================
-
-console.log("SUPABASE TERHUBUNG");
-console.log("PROJECT:", SUPABASE_URL);
-
-
-// =====================================================
-// VARIABEL PEMILIH
-// =====================================================
-
-let currentVoter = null;
-
-
-// =====================================================
 // CEK STATUS PEMILIHAN
 // =====================================================
 
 async function checkElectionStatus() {
 
-  const statusBox =
-    document.getElementById("status");
+  const statusBox = document.getElementById("status");
 
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-      .from("settings")
-      .select(
-        "status,start_at,end_at"
-      )
-      .eq("id", 1)
-      .single();
-
+  const { data, error } = await supabaseClient
+    .from("settings")
+    .select("status,start_at,end_at")
+    .eq("id", 1)
+    .single();
 
   if (error) {
-
-    console.error(
-      "SETTINGS ERROR:",
-      error
-    );
+    console.error("SETTINGS ERROR:", error);
 
     statusBox.textContent =
       "Status pemilihan tidak dapat dibaca.";
 
-    statusBox.style.color =
-      "#fca5a5";
-
+    statusBox.style.color = "#fca5a5";
     return;
   }
 
+  const now = new Date();
 
-  const now =
-    new Date();
+  const start = data.start_at
+    ? new Date(data.start_at)
+    : null;
 
-
-  const start =
-    data.start_at
-      ? new Date(data.start_at)
-      : null;
-
-
-  const end =
-    data.end_at
-      ? new Date(data.end_at)
-      : null;
-
+  const end = data.end_at
+    ? new Date(data.end_at)
+    : null;
 
   const isOpen =
     data.status === "open" &&
     (!start || now >= start) &&
     (!end || now <= end);
 
-
   if (isOpen) {
-
     statusBox.textContent =
       "🟢 Pemilihan sedang dibuka";
 
-    statusBox.style.color =
-      "#86efac";
-
+    statusBox.style.color = "#86efac";
   } else {
-
     statusBox.textContent =
       "🔴 Pemilihan sedang ditutup";
 
-    statusBox.style.color =
-      "#fca5a5";
-
+    statusBox.style.color = "#fca5a5";
   }
-
 }
 
 
 // =====================================================
-// LOGIN PEMILIH
+// LOGIN PEMILIH: NAMA + JABATAN
 // =====================================================
 
 async function loginPemilih() {
 
-  const nama =
-    document
-      .getElementById("nama")
-      .value
-      .trim();
+  const nama = document
+    .getElementById("nama")
+    .value
+    .trim();
 
+  const jabatan = document
+    .getElementById("jabatan")
+    .value
+    .trim();
 
-  const kelas =
-    document
-      .getElementById("kelas")
-      .value
-      .trim();
+  const message = document.getElementById("message");
 
-
-  const message =
-    document
-      .getElementById("message");
-
-
-  const button =
-    document
-      .getElementById("loginButton");
-
+  const button = document.getElementById("loginButton");
 
   message.textContent = "";
+  message.className = "message";
 
-  message.className =
-    "message";
-
-
-  // ==============================
   // VALIDASI INPUT
-  // ==============================
 
-  if (!nama || !kelas) {
-
+  if (!nama || !jabatan) {
     message.textContent =
-      "Nama dan kelas wajib diisi.";
+      "Nama dan jabatan wajib diisi.";
 
-    message.classList.add(
-      "error"
-    );
-
+    message.classList.add("error");
     return;
   }
 
-
   button.disabled = true;
-
-  button.textContent =
-    "MEMERIKSA...";
-
+  button.textContent = "MEMERIKSA...";
 
   try {
 
-    // ==============================
-    // CEK STATUS
-    // ==============================
+    // CEK STATUS PEMILIHAN
 
-    const {
-      data: settings,
-      error: settingsError
-    } =
+    const { data: settings, error: settingsError } =
       await supabaseClient
         .from("settings")
-        .select(
-          "status,start_at,end_at"
-        )
+        .select("status,start_at,end_at")
         .eq("id", 1)
         .single();
 
-
     if (settingsError) {
-
       throw settingsError;
-
     }
 
+    const now = new Date();
 
-    console.log(
-      "SETTINGS:",
-      settings
-    );
+    const start = settings.start_at
+      ? new Date(settings.start_at)
+      : null;
 
-
-    const now =
-      new Date();
-
-
-    const start =
-      settings.start_at
-        ? new Date(settings.start_at)
-        : null;
-
-
-    const end =
-      settings.end_at
-        ? new Date(settings.end_at)
-        : null;
-
+    const end = settings.end_at
+      ? new Date(settings.end_at)
+      : null;
 
     const isOpen =
       settings.status === "open" &&
       (!start || now >= start) &&
       (!end || now <= end);
 
-
     if (!isOpen) {
-
       message.textContent =
         "🔴 Pemilihan saat ini sedang ditutup.";
 
-      message.classList.add(
-        "error"
-      );
-
+      message.classList.add("error");
       return;
     }
 
+    // VERIFIKASI NAMA + JABATAN
 
-    // ==============================
-    // VERIFIKASI PEMILIH
-    // ==============================
+    console.log("MENGIRIM RPC:", {
+      p_name: nama,
+      p_jabatan: jabatan
+    });
 
-    console.log(
-      "MENGIRIM RPC:",
-      {
-        p_name: nama,
-        p_kelas: kelas
-      }
-    );
-
-
-    const {
-      data: voterData,
-      error: voterError
-    } =
+    const { data: voterData, error: voterError } =
       await supabaseClient.rpc(
         "verify_voter",
         {
           p_name: nama,
-          p_kelas: kelas
+          p_jabatan: jabatan
         }
       );
 
-
-    // ==============================
-    // DEBUG RPC
-    // ==============================
-
-    console.log(
-      "RPC RESULT:",
-      voterData
-    );
-
-    console.log(
-      "RPC ERROR:",
-      voterError
-    );
-
+    console.log("RPC RESULT:", voterData);
+    console.log("RPC ERROR:", voterError);
 
     if (voterError) {
-
       throw voterError;
-
     }
 
-
-    // ==============================
     // AMBIL DATA PEMILIH
-    // ==============================
 
     const voter =
-      voterData &&
-      voterData.length > 0
+      voterData && voterData.length > 0
         ? voterData[0]
         : null;
 
+    console.log("VOTER TERPILIH:", voter);
 
-    console.log(
-      "VOTER TERPILIH:",
-      voter
-    );
-
-
-    // ==============================
     // PEMILIH TIDAK DITEMUKAN
-    // ==============================
 
     if (!voter) {
-
       message.textContent =
-        "❌ Nama dan kelas tidak ditemukan.";
+        "❌ Nama dan jabatan tidak ditemukan.";
 
-      message.classList.add(
-        "error"
-      );
-
+      message.classList.add("error");
       return;
     }
 
-
-    // ==============================
     // SUDAH MEMILIH
-    // ==============================
 
     if (voter.has_voted) {
-
       message.textContent =
         "⚠️ Pemilih ini sudah menggunakan hak suara.";
 
-      message.classList.add(
-        "error"
-      );
-
+      message.classList.add("error");
       return;
     }
 
+    // SIMPAN IDENTITAS PEMILIH
 
-    // ==============================
-    // SIMPAN PEMILIH
-    // ==============================
+    sessionStorage.setItem("voter_id", voter.id);
+    sessionStorage.setItem("voter_name", voter.name);
+    sessionStorage.setItem("voter_jabatan", jabatan);
 
-    currentVoter =
-      voter;
+    // Kompatibilitas dengan halaman voting lama
+    sessionStorage.setItem("voter_kelas", voter.kelas || "");
 
-
-    sessionStorage.setItem(
-      "voter_id",
-      voter.id
-    );
-
-
-    sessionStorage.setItem(
-      "voter_name",
-      voter.name
-    );
-
-
-    sessionStorage.setItem(
-      "voter_kelas",
-      voter.kelas || ""
-    );
-
-
-    // ==============================
     // TAMPILKAN KONFIRMASI
-    // ==============================
 
     document
-      .getElementById(
-        "loginPage"
-      )
-      .classList.add(
-        "hidden"
-      );
-
+      .getElementById("loginPage")
+      .classList.add("hidden");
 
     document
-      .getElementById(
-        "welcomePage"
-      )
-      .classList.remove(
-        "hidden"
-      );
-
+      .getElementById("welcomePage")
+      .classList.remove("hidden");
 
     document
-      .getElementById(
-        "welcomeName"
-      )
+      .getElementById("welcomeName")
       .textContent =
-        voter.name +
-        (
-          voter.kelas
-            ? " • " + voter.kelas
-            : ""
-        );
+        voter.name + " • " + jabatan;
 
   }
 
   catch (error) {
 
-    console.error(
-      "LOGIN ERROR:",
-      error
-    );
-
+    console.error("LOGIN ERROR:", error);
 
     message.textContent =
-      "Terjadi kesalahan: " +
-      error.message;
+      "Terjadi kesalahan: " + error.message;
 
-    message.classList.add(
-      "error"
-    );
+    message.classList.add("error");
 
   }
 
   finally {
 
-    button.disabled =
-      false;
-
-    button.textContent =
-      "MASUK";
+    button.disabled = false;
+    button.textContent = "MASUK";
 
   }
 
@@ -682,10 +465,7 @@ async function loginPemilih() {
 // =====================================================
 
 function lanjutVoting() {
-
-  window.location.href =
-    "voting/";
-
+  window.location.href = "voting/";
 }
 
 
