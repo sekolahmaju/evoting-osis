@@ -18,7 +18,7 @@ h1,h2,h3{margin-top:0}
 input,textarea,select{width:100%;padding:12px;margin:7px 0 14px;background:#080b10;color:white;border:1px solid #394351;border-radius:9px;font-size:15px}
 textarea{min-height:90px;resize:vertical}
 button{border:0;border-radius:9px;padding:12px 15px;font-weight:bold;cursor:pointer;color:white;margin:3px}
-button:disabled{opacity:.5}
+button:disabled{opacity:.5;cursor:not-allowed}
 .primary{background:#2563eb}
 .success{background:#16a34a}
 .danger{background:#dc2626}
@@ -32,11 +32,20 @@ button:disabled{opacity:.5}
 .result{margin:12px 0}
 .bar{height:10px;background:#080b10;border-radius:20px;overflow:hidden;margin:10px 0}
 .fill{height:100%;background:#2563eb}
-.msg{min-height:20px;margin-top:10px}
+.msg{min-height:20px;margin-top:10px;overflow-wrap:anywhere}
 .actions{display:flex;flex-wrap:wrap;gap:5px}
 label{font-weight:bold;font-size:14px}
 hr{border:0;border-top:1px solid #29313c;margin:20px 0}
-@media(max-width:600px){main{padding:15px 10px}.card{padding:15px}}
+.preview-box{max-height:280px;overflow:auto;border:1px solid #29313c;border-radius:9px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #29313c}
+th{background:#080b10;position:sticky;top:0}
+.error-list{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:600px){
+  main{padding:15px 10px}
+  .card{padding:15px}
+  th,td{padding:8px}
+}
 </style>
 </head>
 
@@ -48,10 +57,13 @@ hr{border:0;border-top:1px solid #29313c;margin:20px 0}
 <!-- LOGIN -->
 <section id="login" class="card">
 <h2>🔐 Login Admin</h2>
+
 <label>Email Admin</label>
 <input id="email" type="email" autocomplete="username">
+
 <label>Password</label>
 <input id="password" type="password" autocomplete="current-password">
+
 <button id="loginBtn" class="primary" onclick="login()">Masuk</button>
 <p id="loginMsg" class="msg"></p>
 </section>
@@ -67,19 +79,66 @@ hr{border:0;border-top:1px solid #29313c;margin:20px 0}
 
 <!-- STATISTIK -->
 <div class="grid">
-<div class="stat-card">
-<div class="muted">👥 Total Pemilih</div>
-<div class="stat" id="totalVoters">—</div>
+  <div class="stat-card">
+    <div class="muted">👥 Total Pemilih</div>
+    <div class="stat" id="totalVoters">—</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="muted">✅ Sudah Memilih</div>
+    <div class="stat" id="totalVoted">—</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="muted">🗳️ Suara Masuk</div>
+    <div class="stat" id="totalVotes">—</div>
+  </div>
 </div>
-<div class="stat-card">
-<div class="muted">✅ Sudah Memilih</div>
-<div class="stat" id="totalVoted">—</div>
+
+<!-- IMPORT CSV PEMILIH -->
+<section class="card">
+<h2>📥 Import Data Pemilih</h2>
+
+<p class="muted">
+Upload data siswa/pengurus MPK menggunakan file CSV UTF-8.
+Sistem akan membuat NIS unik dan mengisi pin_hash secara otomatis.
+Pemilih tetap login menggunakan Nama + Jabatan.
+</p>
+
+<div class="card">
+  <h3>Format CSV</h3>
+  <p>File harus memiliki dua kolom dengan header berikut:</p>
+
+  <code>Nama,Jabatan</code>
+
+  <p class="muted">
+  Contoh struktur file: kolom Nama berisi nama lengkap,
+  kolom Jabatan berisi jabatan pemilih.
+  Jangan mengubah nama header.
+  </p>
+
+  <button class="gray" onclick="downloadTemplate()">
+    ⬇️ Unduh Template CSV
+  </button>
 </div>
-<div class="stat-card">
-<div class="muted">🗳️ Suara Masuk</div>
-<div class="stat" id="totalVotes">—</div>
+
+<label>Pilih File CSV</label>
+<input type="file" id="csvFile" accept=".csv,text/csv">
+
+<div class="actions">
+  <button class="primary" id="previewBtn" onclick="previewCSV()">
+    🔍 Periksa CSV
+  </button>
+
+  <button class="success" id="importBtn" onclick="importCSV()" disabled>
+    📥 Import Pemilih
+  </button>
 </div>
-</div>
+
+<p id="csvMsg" class="msg"></p>
+<div id="csvPreview"></div>
+<div id="importReport"></div>
+</section>
 
 <!-- HASIL -->
 <section class="card">
@@ -107,17 +166,17 @@ hr{border:0;border-top:1px solid #29313c;margin:20px 0}
 
 <label>Status Pemilihan</label>
 <select id="status">
-<option value="draft">Draft</option>
-<option value="open">Buka</option>
-<option value="paused">Jeda</option>
-<option value="closed">Tutup</option>
+  <option value="draft">Draft</option>
+  <option value="open">Buka</option>
+  <option value="paused">Jeda</option>
+  <option value="closed">Tutup</option>
 </select>
 
 <label>Visibilitas Hasil</label>
 <select id="results_mode">
-<option value="hidden">Sembunyikan</option>
-<option value="after_closed">Setelah ditutup</option>
-<option value="manual">Manual</option>
+  <option value="hidden">Sembunyikan</option>
+  <option value="after_closed">Setelah ditutup</option>
+  <option value="manual">Manual</option>
 </select>
 
 <button class="success" onclick="saveSettings()">💾 Simpan Pengaturan</button>
@@ -162,6 +221,9 @@ const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
 
+let parsedVoters = [];
+let csvFileFingerprint = "";
+
 function esc(value){
   const d = document.createElement("div");
   d.textContent = value ?? "";
@@ -171,6 +233,10 @@ function esc(value){
 function showMsg(id,text){
   $(id).textContent = text;
 }
+
+/* =========================
+   LOGIN ADMIN
+========================= */
 
 async function login(){
   const email = $("email").value.trim();
@@ -231,6 +297,7 @@ async function checkAdmin(){
 async function showDashboard(profile){
   $("login").classList.add("hidden");
   $("dashboard").classList.remove("hidden");
+
   $("adminName").textContent =
     (profile.display_name || "Admin")+" • "+(profile.role || "admin");
 
@@ -239,6 +306,7 @@ async function showDashboard(profile){
 
 async function logout(){
   await client.auth.signOut();
+
   $("dashboard").classList.add("hidden");
   $("login").classList.remove("hidden");
 }
@@ -252,9 +320,287 @@ async function loadAll(){
   ]);
 }
 
+/* =========================
+   IMPORT CSV PEMILIH
+========================= */
+
+function downloadTemplate(){
+  const content = "\uFEFFNama,Jabatan\r\n";
+  const blob = new Blob([content],{type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "template-pemilih-mpk.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+/* CSV parser: menangani koma dalam tanda kutip */
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,"");
+
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+
+    if(ch === '"'){
+      if(quoted && text[i+1] === '"'){
+        field += '"';
+        i++;
+      }else{
+        quoted = !quoted;
+      }
+    }else if(ch === "," && !quoted){
+      row.push(field.trim());
+      field = "";
+    }else if((ch === "\n" || ch === "\r") && !quoted){
+      if(ch === "\r" && text[i+1] === "\n") i++;
+
+      row.push(field.trim());
+
+      if(row.some(v=>v !== "")){
+        rows.push(row);
+      }
+
+      row = [];
+      field = "";
+    }else{
+      field += ch;
+    }
+  }
+
+  if(quoted){
+    throw new Error("Ada tanda kutip CSV yang tidak berpasangan.");
+  }
+
+  row.push(field.trim());
+
+  if(row.some(v=>v !== "")){
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function resetCSVState(){
+  parsedVoters = [];
+  csvFileFingerprint = "";
+
+  $("importBtn").disabled = true;
+  $("csvPreview").innerHTML = "";
+  $("importReport").innerHTML = "";
+}
+
+async function previewCSV(){
+  const file = $("csvFile").files[0];
+
+  resetCSVState();
+
+  if(!file){
+    showMsg("csvMsg","Pilih file CSV terlebih dahulu.");
+    return;
+  }
+
+  if(!file.name.toLowerCase().endsWith(".csv")){
+    showMsg("csvMsg","File harus berformat CSV.");
+    return;
+  }
+
+  if(file.size > 5*1024*1024){
+    showMsg("csvMsg","Ukuran file maksimal 5 MB.");
+    return;
+  }
+
+  $("previewBtn").disabled = true;
+  showMsg("csvMsg","Membaca file CSV...");
+
+  try{
+    const text = await file.text();
+    const rows = parseCSV(text);
+
+    if(rows.length < 2){
+      throw new Error("CSV belum memiliki data pemilih.");
+    }
+
+    const header = rows[0].map(h=>h.trim().toLowerCase());
+
+    if(header.length !== 2 ||
+       header[0] !== "nama" ||
+       header[1] !== "jabatan"){
+      throw new Error('Header harus tepat: Nama,Jabatan');
+    }
+
+    const dataRows = rows.slice(1);
+
+    const invalid = [];
+    const valid = [];
+
+    dataRows.forEach((r,i)=>{
+      const nama = (r[0] || "").trim();
+      const jabatan = (r[1] || "").trim();
+
+      if(r.length !== 2 || !nama || !jabatan){
+        invalid.push({
+          baris:i+2,
+          nama:nama || "(kosong)",
+          error:"Kolom Nama dan Jabatan wajib diisi."
+        });
+        return;
+      }
+
+      valid.push({nama,jabatan});
+    });
+
+    if(!valid.length){
+      throw new Error("Tidak ada baris valid untuk diimpor.");
+    }
+
+    parsedVoters = valid;
+    csvFileFingerprint = file.name+"|"+file.size+"|"+file.lastModified;
+
+    $("csvPreview").innerHTML = `
+      <h3>Pratinjau Import</h3>
+      <p>Baris valid: <b>${valid.length}</b></p>
+      <p>Baris tidak valid: <b>${invalid.length}</b></p>
+
+      <div class="preview-box">
+        <table>
+          <thead>
+            <tr><th>No.</th><th>Nama</th><th>Jabatan</th></tr>
+          </thead>
+          <tbody>
+            ${valid.slice(0,50).map((v,i)=>`
+              <tr>
+                <td>${i+1}</td>
+                <td>${esc(v.nama)}</td>
+                <td>${esc(v.jabatan)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      ${valid.length>50
+        ? `<p class="muted">Menampilkan 50 dari ${valid.length} data valid.</p>`
+        : ""}
+
+      ${invalid.length ? `
+        <h3>Baris yang tidak valid</h3>
+        <div class="error-list">
+          ${invalid.slice(0,30).map(e=>
+            `Baris ${e.baris}: ${esc(e.error)}`
+          ).join("<br>")}
+        </div>
+      `:""}
+    `;
+
+    $("importBtn").disabled = valid.length === 0;
+
+    showMsg("csvMsg","✅ CSV berhasil diperiksa. Periksa pratinjau sebelum import.");
+  }catch(e){
+    showMsg("csvMsg","❌ "+e.message);
+  }finally{
+    $("previewBtn").disabled = false;
+  }
+}
+
+async function importCSV(){
+  const file = $("csvFile").files[0];
+
+  if(!file || !parsedVoters.length){
+    showMsg("csvMsg","Periksa CSV terlebih dahulu.");
+    return;
+  }
+
+  const currentFingerprint =
+    file.name+"|"+file.size+"|"+file.lastModified;
+
+  if(currentFingerprint !== csvFileFingerprint){
+    showMsg("csvMsg","File berubah. Periksa CSV kembali.");
+    resetCSVState();
+    return;
+  }
+
+  const ok = confirm(
+    `Import ${parsedVoters.length} data pemilih ke database?\n\n`+
+    `Data lama tidak dihapus. Data dengan nama + jabatan yang sudah terdaftar akan ditolak.`
+  );
+
+  if(!ok) return;
+
+  $("importBtn").disabled = true;
+  $("previewBtn").disabled = true;
+  showMsg("csvMsg","⏳ Mengirim data ke Supabase...");
+
+  try{
+    const {data,error} = await client.rpc("import_voters",{
+      p_voters:parsedVoters
+    });
+
+    if(error) throw error;
+
+    const report = data || {};
+    const berhasil = Number(report.berhasil || 0);
+    const gagal = Number(report.gagal || 0);
+    const errors = Array.isArray(report.errors) ? report.errors : [];
+
+    $("importReport").innerHTML = `
+      <div class="card">
+        <h3>📋 Laporan Import</h3>
+        <p>✅ Berhasil: <b>${berhasil}</b></p>
+        <p>❌ Gagal: <b>${gagal}</b></p>
+
+        ${errors.length ? `
+          <hr>
+          <h4>Detail data gagal</h4>
+          <div class="error-list">
+            ${errors.map(e=>`
+              <p>
+                <b>${esc(e.nama || "Nama kosong")}</b>
+                — ${esc(e.jabatan || "Jabatan kosong")}<br>
+                ${esc(e.error || "Tidak diketahui")}
+              </p>
+            `).join("")}
+          </div>
+        `:""}
+      </div>
+    `;
+
+    showMsg("csvMsg",
+      `Import selesai. Berhasil ${berhasil}, gagal ${gagal}.`
+    );
+
+    await loadStats();
+
+    // Kosongkan data siap-import agar tidak terklik ulang
+    parsedVoters = [];
+    csvFileFingerprint = "";
+    $("csvFile").value = "";
+    $("importBtn").disabled = true;
+
+  }catch(e){
+    showMsg("csvMsg","❌ Import gagal: "+e.message);
+    $("importBtn").disabled = false;
+  }finally{
+    $("previewBtn").disabled = false;
+  }
+}
+
+/* =========================
+   PENGATURAN PEMILIHAN
+========================= */
+
 function toLocal(value){
   if(!value) return "";
+
   const d = new Date(value);
+
   return new Date(d.getTime()-d.getTimezoneOffset()*60000)
     .toISOString().slice(0,16);
 }
@@ -301,8 +647,14 @@ async function saveSettings(){
     updated_at:new Date().toISOString()
   }).eq("id",1);
 
-  showMsg("settingsMsg",error ? "❌ "+error.message : "✅ Pengaturan disimpan.");
+  showMsg("settingsMsg",
+    error ? "❌ "+error.message : "✅ Pengaturan disimpan."
+  );
 }
+
+/* =========================
+   STATISTIK
+========================= */
 
 async function loadStats(){
   const [a,b,c] = await Promise.all([
@@ -316,6 +668,10 @@ async function loadStats(){
   $("totalVotes").textContent = c.count ?? "—";
 }
 
+/* =========================
+   KANDIDAT
+========================= */
+
 async function getCandidates(activeOnly=false){
   let q = client.from("candidates")
     .select("id,number,candidate_name,vision,mission,photo_url,active")
@@ -324,7 +680,9 @@ async function getCandidates(activeOnly=false){
   if(activeOnly) q = q.eq("active",true);
 
   const {data,error} = await q;
+
   if(error) throw error;
+
   return data || [];
 }
 
@@ -341,10 +699,12 @@ async function loadResults(){
     if(error) throw error;
 
     const counts = {};
-    candidates.forEach(c => counts[c.id] = 0);
+    candidates.forEach(c=>counts[c.id]=0);
 
-    (votes || []).forEach(v => {
-      if(counts[v.candidate_id] !== undefined) counts[v.candidate_id]++;
+    (votes || []).forEach(v=>{
+      if(counts[v.candidate_id] !== undefined){
+        counts[v.candidate_id]++;
+      }
     });
 
     const total = (votes || []).length;
@@ -354,7 +714,7 @@ async function loadResults(){
       return;
     }
 
-    box.innerHTML = candidates.map(c => {
+    box.innerHTML = candidates.map(c=>{
       const n = counts[c.id] || 0;
       const pct = total ? n/total*100 : 0;
 
@@ -364,7 +724,9 @@ async function loadResults(){
           <div style="font-size:22px;font-weight:bold;margin-top:8px">
             ${n} <span class="muted" style="font-size:14px">suara</span>
           </div>
-          <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+          <div class="bar">
+            <div class="fill" style="width:${pct}%"></div>
+          </div>
           <span class="muted">${pct.toFixed(1)}%</span>
         </div>`;
     }).join("");
@@ -385,7 +747,10 @@ async function addCandidate(){
 
   try{
     const all = await getCandidates(false);
-    const maxNumber = all.reduce((max,c)=>Math.max(max,Number(c.number)||0),0);
+    const maxNumber = all.reduce(
+      (max,c)=>Math.max(max,Number(c.number)||0),0
+    );
+
     const number = maxNumber + 1;
 
     const {error} = await client.from("candidates").insert({
@@ -404,6 +769,7 @@ async function addCandidate(){
     $("newMission").value = "";
 
     showMsg("addMsg","✅ Kandidat berhasil ditambahkan.");
+
     await loadCandidates();
     await loadResults();
   }catch(e){
@@ -423,7 +789,7 @@ async function loadCandidates(){
       return;
     }
 
-    box.innerHTML = candidates.map(c => `
+    box.innerHTML = candidates.map(c=>`
       <div class="candidate">
         ${c.photo_url
           ? `<img class="photo" src="${esc(c.photo_url)}" alt="Foto kandidat">`
@@ -441,17 +807,24 @@ async function loadCandidates(){
         <label>Misi</label>
         <textarea id="mission-${c.id}">${esc(c.mission)}</textarea>
 
-        <button class="success" onclick="saveCandidate(${c.id})">💾 Simpan Data</button>
+        <button class="success" onclick="saveCandidate(${c.id})">
+          💾 Simpan Data
+        </button>
 
         <hr>
         <label>Upload Foto (JPG/PNG/WEBP, maks. 5 MB)</label>
         <input type="file" id="file-${c.id}" accept="image/jpeg,image/png,image/webp">
 
-        <button class="primary" onclick="uploadPhoto(${c.id})">📤 Upload Foto</button>
+        <button class="primary" onclick="uploadPhoto(${c.id})">
+          📤 Upload Foto
+        </button>
 
-        ${c.photo_url ? `<button class="gray" onclick="deletePhoto(${c.id})">🗑️ Hapus Foto</button>` : ""}
+        ${c.photo_url
+          ? `<button class="gray" onclick="deletePhoto(${c.id})">🗑️ Hapus Foto</button>`
+          : ""}
 
         <hr>
+
         ${c.active
           ? `<button class="danger" onclick="toggleCandidate(${c.id},false)">Nonaktifkan Kandidat</button>`
           : `<button class="success" onclick="toggleCandidate(${c.id},true)">Aktifkan Kembali</button>`}
@@ -482,6 +855,7 @@ async function saveCandidate(id){
   }
 
   showMsg("candidateMsg","✅ Data kandidat berhasil diperbarui.");
+
   await loadCandidates();
   await loadResults();
 }
@@ -499,7 +873,10 @@ async function toggleCandidate(id,active){
     return;
   }
 
-  showMsg("candidateMsg",`✅ Kandidat berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`);
+  showMsg("candidateMsg",
+    `✅ Kandidat berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`
+  );
+
   await loadCandidates();
   await loadResults();
 }
@@ -535,7 +912,9 @@ async function uploadPhoto(id){
 
     if(uploadError) throw uploadError;
 
-    const {data} = client.storage.from("candidate-photos").getPublicUrl(path);
+    const {data} = client.storage
+      .from("candidate-photos")
+      .getPublicUrl(path);
 
     const {error:updateError} = await client.from("candidates")
       .update({photo_url:data.publicUrl}).eq("id",id);
@@ -576,6 +955,11 @@ async function deletePhoto(id){
     showMsg("candidateMsg","❌ Gagal menghapus foto: "+e.message);
   }
 }
+
+$("csvFile").addEventListener("change",()=>{
+  resetCSVState();
+  showMsg("csvMsg","File berubah. Klik Periksa CSV terlebih dahulu.");
+});
 
 checkAdmin();
 </script>
